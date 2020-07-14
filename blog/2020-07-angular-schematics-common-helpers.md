@@ -46,6 +46,18 @@ export function playground(_options: any): Rule {
 ```
 
 This will be our base for the following examples and explanations.
+
+### Basic types
+
+In case you are not familar with the schematics, I will just explain some very basic things in short:
+
+| type | explanation |
+|---|---|
+|`Tree`|Is the structured virtual representation of every file in the workspace|
+|`Rule`|Is called with a `Tree` and a `SchematicContext`. The Rule is supposed to make changes on the `Tree` and returns the adjusted `Tree`|
+|`SchematicContext`|Contains information necessary for Schematics to execute some rules|
+
+### `@schematics/angular`
 A second thing we need to do is to install the package `@schematics/angular` which contains all the utils we need for the further steps.
 This package contains all the schematics the Angular CLI uses by itself when running command like `ng generate` or `ng new` etc.
 
@@ -107,5 +119,45 @@ export function playground(_options: any): Rule {
 
 > [Checkout the implementations in detail](https://github.com/angular/angular-cli/blob/master/packages/schematics/angular/utility/dependencies.ts)
 
+## Add a content to a specific position
+
+Sometimes we need to change some contents of a file.
+Indenpendently from the file type of the file, we can use the `InsertChange` class that'll return a change object containing the content to be added and the position where the changes is inserted.
+In the following example we will create a new file called `my-file.fileextension` with the content '`const a = 'foo';`' inside the virtual tree.
+Now we will instanciate a new `InsertChange` with the filepath, the position where we want to add the change and finally the content we want to add.
+The next step for us is to start the update process for the file using the `beginUpdate` method on our tree.
+This method returns an `UpdateRecorder`.
+We use the `insertLeft()` method and we will hand over the postion and the content (`toAdd`) from the `InsertChange`.
+The changes is now marked but not proceeded.
+To really update the files content, we need to call the `commitUpdate()` method on our tree with the `exportRecorder`.
+When we will now call `tree.get(filePath)`, we can log the files content and see that the change has been proceeded.
+To delete a file inside the virtual tree, we can use the `delete()` method with the filepath on the tree.
+
+```ts
+import { Rule, SchematicContext, Tree } from '@angular-devkit/schematics/';
+import { InsertChange } from '@schematics/angular/utility/change';
+
+export function playground(_options: any): Rule {
+  return (tree: Tree, _context: SchematicContext) => {
+    const filePath = 'my-file.fileextension';
+    tree.create(filePath, `const a = 'foo';`);
+
+    // insert a new change
+    const insertChange = new InsertChange(filePath, 16, '\nconst b = \'bar\';');
+    const exportRecorder = tree.beginUpdate(filePath);
+    exportRecorder.insertLeft(insertChange.pos, insertChange.toAdd);
+    tree.commitUpdate(exportRecorder);
+    console.log(tree.get(filePath)?.content.toString())
+    // const a = 'foo';
+    // const b = 'bar';
+
+    tree.delete(filePath); // cleanup (if not running schematic in debug mode)
+    return tree;
+  };
+}
+```
+
 ## Add or Remove TypeScript imports
+
+
 
